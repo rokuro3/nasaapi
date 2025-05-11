@@ -65,3 +65,63 @@ def safe_get_average_temperature(row, year, parameter):
     if avg_temp is None:
         logging.error(f"Error calculating {parameter} for row: {row.to_dict()}")
     return avg_temp
+
+def get_daily_grid_average_temperature(lat, lon, year, parameter, grid_size_km=20, grid_points=1):
+    """
+    指定された緯度・経度と年に対して、日次の気象データをグリッド範囲で取得し、
+    各日の平均値を返す（pd.Series形式）。
+    """
+    base_url = 'https://power.larc.nasa.gov/api/temporal/daily/point'
+    lat_range = grid_size_km / 111
+    lon_range = grid_size_km / (111 * np.cos(np.radians(lat)))
+
+    lats = np.linspace(lat, lat + lat_range, grid_points)
+    lons = np.linspace(lon, lon + lon_range, grid_points)
+
+    def fetch_daily_data(lat_point, lon_point):
+        logging.info(f"Fetching daily data for ({lat_point}, {lon_point})")
+        params = {
+            'parameters': parameter,
+            'community': 'RE',
+            'longitude': lon_point,
+            'latitude': lat_point,
+            'start': f"{year}0101",
+            'end': f"{year}1231",
+            'format': 'JSON'
+        }
+        time.sleep(random.uniform(0, 5))
+        try:
+            response = requests.get(base_url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            param_data = data['properties']['parameter'][parameter]
+            series = pd.Series(param_data)
+            series.index = pd.to_datetime(series.index, format='%Y%m%d')
+            series = series.astype(float)
+            logging.info(f"Successfully fetched daily data for ({lat_point}, {lon_point})")
+            return series
+        except Exception as e:
+            logging.error(f"Error fetching daily data for ({lat_point}, {lon_point}): {str(e)}")
+            return None
+
+    daily_series_list = []
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = {
+            executor.submit(fetch_daily_data, lat_point, lon_point): (lat_point, lon_point)
+            for lat_point in lats for lon_point in lons
+        }
+        for future in as_completed(futures):
+            result = future.result()
+            if result is not None:
+                daily_series_list.append(result)
+
+    if not daily_series_list:
+        return None
+
+    # 日付ごとに平均を取る（Seriesのリスト → DataFrame → 平均）
+    daily_df = pd.concat(daily_series_list, axis=1)
+    daily_mean_series = daily_df.mean(axis=1)
+
+    return daily_mean_series
+

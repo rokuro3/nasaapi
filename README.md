@@ -12,30 +12,31 @@
 - **役割**: NASAの気象データAPIから指定の地点における気温や放射量などのパラメータを取得し、その平均値（グリッド内の平均）を計算する関数を提供します。
 - **主な機能**:
   - APIリクエストの送信とデータ取得
-  - リクエスト処理の並列化（`ThreadPoolExecutor` を利用）
+  - 日次の気象データ取得機能 (`get_daily_grid_average_temperature` を追加)
+  - 並列処理 (`ThreadPoolExecutor` を利用)
   - 取得した結果のログ記録とエラー処理
   - 指定された範囲内のデータで平均値を算出
 
-### 2. `nasa_api_tutorial.py`
-- **役割**: `nasa_api.py` の関数を利用して、実際に東京の2019年の平均地表面温度を取得する例を示します。
+### 2. `nasa_api_tutorial.py` & `nasa_api_tutorial_daily.py`
+- **役割**: `nasa_api.py` の関数を利用して、東京の気象データを取得する例を示します。
 - **使い方**:
-  - 関数 `get_grid_average_temperature` を使用して、東京の座標情報をもとに気象データを取得
-  - 結果をコンソールに出力
+  - `get_grid_average_temperature` を使用して、年間平均気温を取得
+  - `get_daily_grid_average_temperature` を使用して、日次データを取得
 
-### 3. `make_df.py`
+### 3. `make_df.py` & `make_df_daily.py`
 - **役割**: CSVファイルからデータフレームを読み込み、各地点での気温（T2M）および放射量（ALLSKY_SFC_SW_DWN）の平均値を計算し、結果をCSVファイルに保存します。
 - **主な機能**:
-  - 指定されたCSVファイルを読み込む
-  - 各地点に対して、`safe_get_average_temperature` 関数によりデータを計算（NASA APIから取得）
+  - NASA APIからデータ取得 (`make_df_daily.py` では日次データ取得)
+  - 各地点の気象データを計算
   - 各行が処理済みかどうかのフラグ管理とログによる進捗の記録
   - 結果をCSVファイルに追記保存
 
-### 4. `display_in_streamlit.py`
+### 4. `display_in_streamlit.py` & `display_in_streamlit_daily.py`
 - **役割**: Streamlitを使用して、処理済みの気象データをインタラクティブに視覚化するWebアプリケーションを提供します。
 - **主な機能**:
-  - サイドバーのユーザーインターフェイスでデータセット（1990年代または2010年代）と表示パラメータ（温度、放射量、その他）を選択
-  - 指定されたCSVを読み込み、必要に応じてデータ変換（例：数値変換、NaNの補完）を実施
-  - CartopyとMatplotlibを利用して、日本全体を対象とした気象データの散布図を描画
+  - サイドバーでデータセット（1990年代または2010年代）と表示パラメータ（温度、放射量など）を選択
+  - `display_in_streamlit_daily.py` では日次データを選択して視覚化
+  - CSVファイルを読み込み、CartopyとMatplotlibで散布図を描画
   - インタラクティブに拡大縮小可能な視覚化を実現
 
 ---
@@ -56,6 +57,7 @@ pip install requests pandas numpy matplotlib cartopy streamlit
 `nasa_api.py` 内の関数を利用して、各地点の気象データを取得できます。
 
 ### 例
+#### 年間平均値の取得
 
 ```python
 from nasa_api import get_grid_average_temperature
@@ -67,6 +69,20 @@ parameter = 'T2M'
 temperature = get_grid_average_temperature(latitude, longitude, year, parameter)
 print(f"The average {parameter} for the grid around Tokyo in {year} was {temperature:.2f}°C")
 ```
+
+#### 日次データの取得
+```python
+from nasa_api import get_daily_grid_average_temperature
+
+latitude = 35.6895
+longitude = 139.6917
+year = 2019
+parameter = 'T2M'
+daily_temperatures = get_daily_grid_average_temperature(latitude, longitude, year, parameter)
+print(daily_temperatures)
+```
+
+
 
 ## CSVデータの作成と更新
 
@@ -85,6 +101,7 @@ print(f"The average {parameter} for the grid around Tokyo in {year} was {tempera
 
 ```bash
 streamlit run display_in_streamlit.py
+streamlit run display_in_streamlit_daily.py
 ```
 
 ## 注意点

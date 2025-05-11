@@ -14,9 +14,9 @@ option = st.sidebar.selectbox("Select the data to plot:", ['temperature', 'radia
 
 # 選択されたデータに応じてCSVをロード
 if year_option == '1990s':
-    file_path = 'c:/Users/poulp/Downloads/master_1990年代_20241106_TotalRain.csv'
+    file_path = './measuredData/master_1990年代_20241106_TotalRain.csv'
 elif year_option == '2010s':
-    file_path = 'c:/Users/poulp/Downloads/master_2010年代_20241106_TotalRain.csv'
+    file_path = './measuredData/master_2010年代_20241106_TotalRain.csv'
 
 try:
     df = pd.read_csv(file_path)
