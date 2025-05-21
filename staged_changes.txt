@@ -1,0 +1,265 @@
+diff --git a/display_in_streamlit.py b/display_in_streamlit.py
+index 1e5008d..8c77628 100644
+--- a/display_in_streamlit.py
++++ b/display_in_streamlit.py
+@@ -14,9 +14,9 @@ option = st.sidebar.selectbox("Select the data to plot:", ['temperature', 'radia
+ 
+ # 選択されたデータに応じてCSVをロード
+ if year_option == '1990s':
+-    file_path = 'c:/Users/poulp/Downloads/master_1990年代_20241106_TotalRain.csv'
++    file_path = './measuredData/master_1990年代_20241106_TotalRain.csv'
+ elif year_option == '2010s':
+-    file_path = 'c:/Users/poulp/Downloads/master_2010年代_20241106_TotalRain.csv'
++    file_path = './measuredData/master_2010年代_20241106_TotalRain.csv'
+ 
+ try:
+     df = pd.read_csv(file_path)
+diff --git a/display_in_streamlit_daily.py b/display_in_streamlit_daily.py
+new file mode 100644
+index 0000000..73d0752
+--- /dev/null
++++ b/display_in_streamlit_daily.py
+@@ -0,0 +1,73 @@
++import streamlit as st
++import pandas as pd
++import matplotlib.pyplot as plt
++import cartopy.crs as ccrs
++import cartopy.feature as cfeature
++import calendar
++
++# Streamlitの設定
++st.title("Weather Data Visualization in Japan")
++st.sidebar.header("User Input")
++
++# サイドバーで年代を選択
++year_option = st.sidebar.selectbox("Select the decade:", ['1990s', '2010s'])
++
++# サイドバーでデータタイプを選択
++category = st.sidebar.selectbox("Select the data type:", ['T2M', 'RAD'])
++                
++# 年代に応じて日付リストを作成（存在しない日付を除外）
++if year_option == '1990s':
++    date_list = [
++        f'{category}_1990{str(month).zfill(2)}{str(day).zfill(2)}'
++        for month in range(1, 13)
++        for day in range(1, calendar.monthrange(1990, month)[1] + 1)
++    ]
++elif year_option == '2010s':
++    date_list = [
++        f'{category}_2010{str(month).zfill(2)}{str(day).zfill(2)}'
++        for month in range(1, 13)
++        for day in range(1, calendar.monthrange(2010, month)[1] + 1)
++    ]
++
++# サイドバーで日付を選択
++date_option = st.sidebar.selectbox("Select the date:", date_list)
++
++# 選択されたデータに応じてCSVをロード
++if year_option == '1990s':
++    file_path = './measuredData/master_1990年代_20241106_TotalRain_daily.csv'
++elif year_option == '2010s':
++    file_path = './measuredData/master_2010年代_20241106_TotalRain_daily.csv'
++
++try:
++    df = pd.read_csv(file_path)
++except FileNotFoundError:
++    st.error("CSV file not found. Please check the file path.")
++    st.stop()
++
++# NaN値を0に置き換え
++df[date_option] = df[date_option].fillna(0)
++
++# プロット
++fig, ax = plt.subplots(figsize=(10, 15), subplot_kw={'projection': ccrs.PlateCarree()})
++ax.set_extent([122, 153, 24, 46], crs=ccrs.PlateCarree())  # 日本の範囲
++
++# 地図の特徴を追加
++ax.add_feature(cfeature.LAND)
++ax.add_feature(cfeature.COASTLINE)
++ax.add_feature(cfeature.BORDERS, linestyle=':')
++
++# 散布図プロット
++scatter = ax.scatter(
++    df['lon1'], df['lat1'], c=df[date_option], cmap='coolwarm', s=10, transform=ccrs.PlateCarree()
++)
++
++# カラーバーを追加
++plt.colorbar(scatter, ax=ax, orientation='horizontal', label=date_option)
++
++# タイトルとラベル
++plt.title(f'{date_option} Distribution in Japan')
++plt.xlabel('Longitude')
++plt.ylabel('Latitude')
++
++# Streamlitでプロット表示
++st.pyplot(fig)
+diff --git a/make_df_daily.py b/make_df_daily.py
+new file mode 100644
+index 0000000..415c215
+--- /dev/null
++++ b/make_df_daily.py
+@@ -0,0 +1,59 @@
++import requests
++import pandas as pd
++import logging
++import numpy as np
++from concurrent.futures import ThreadPoolExecutor, as_completed
++import time
++import random
++from nasa_api import *
++
++log_start()
++
++csv_list = [
++    "/home/nnaohiro/nasaapi/master_1990年代_20241106_TotalRain.csv",
++    "/home/nnaohiro/nasaapi/master_2010年代_20241106_TotalRain.csv"
++]
++year_list = [1990, 2010]
++
++# 取得するパラメータとそのプレフィックス（列名用）
++parameters = {
++    "T2M": "T2M",
++    "ALLSKY_SFC_SW_DWN": "RAD"
++}
++
++for i in range(2):
++    df = pd.read_csv(csv_list[i])
++    if 'processed' not in df.columns:
++        df['processed'] = False
++
++    total_rows = len(df)
++    processed_rows = 0
++
++    for index, row in df.iterrows():
++        if not row['processed']:
++            lat = row["lat1"]
++            lon = row["lon1"]
++            year = year_list[i]
++
++            for param, prefix in parameters.items():
++                daily_series = get_daily_grid_average_temperature(lat, lon, year, param)
++
++                if daily_series is not None:
++                    # 列名を {prefix}_YYYYMMDD に変更して1行に展開
++                    daily_series.index = daily_series.index.strftime(f'{prefix}_%Y%m%d')
++                    for col_name, value in daily_series.items():
++                        df.at[index, col_name] = value
++                else:
++                    logging.error(f"Failed to fetch daily {param} for row {index} (lat: {lat}, lon: {lon})")
++
++            # フラグを更新
++            df.at[index, 'processed'] = True
++            processed_rows += 1
++
++            # ログ出力
++            logging.info(f"Processing completed for row {index}")
++            progress_percentage = (processed_rows / total_rows) * 100
++            logging.info(f"Progress: {processed_rows}/{total_rows} rows processed ({progress_percentage:.2f}%)")
++
++            # 途中保存
++            df.to_csv(csv_list[i], index=False)
+diff --git a/nasa_api.py b/nasa_api.py
+index 5565874..fabc533 100644
+--- a/nasa_api.py
++++ b/nasa_api.py
+@@ -64,4 +64,64 @@ def safe_get_average_temperature(row, year, parameter):
+     avg_temp = get_grid_average_temperature(row["lat1"], row["lon1"], year, parameter)
+     if avg_temp is None:
+         logging.error(f"Error calculating {parameter} for row: {row.to_dict()}")
+-    return avg_temp
+\ No newline at end of file
++    return avg_temp
++
++def get_daily_grid_average_temperature(lat, lon, year, parameter, grid_size_km=20, grid_points=1):
++    """
++    指定された緯度・経度と年に対して、日次の気象データをグリッド範囲で取得し、
++    各日の平均値を返す（pd.Series形式）。
++    """
++    base_url = 'https://power.larc.nasa.gov/api/temporal/daily/point'
++    lat_range = grid_size_km / 111
++    lon_range = grid_size_km / (111 * np.cos(np.radians(lat)))
++
++    lats = np.linspace(lat, lat + lat_range, grid_points)
++    lons = np.linspace(lon, lon + lon_range, grid_points)
++
++    def fetch_daily_data(lat_point, lon_point):
++        logging.info(f"Fetching daily data for ({lat_point}, {lon_point})")
++        params = {
++            'parameters': parameter,
++            'community': 'RE',
++            'longitude': lon_point,
++            'latitude': lat_point,
++            'start': f"{year}0101",
++            'end': f"{year}1231",
++            'format': 'JSON'
++        }
++        time.sleep(random.uniform(0, 5))
++        try:
++            response = requests.get(base_url, params=params, timeout=10)
++            response.raise_for_status()
++            data = response.json()
++            param_data = data['properties']['parameter'][parameter]
++            series = pd.Series(param_data)
++            series.index = pd.to_datetime(series.index, format='%Y%m%d')
++            series = series.astype(float)
++            logging.info(f"Successfully fetched daily data for ({lat_point}, {lon_point})")
++            return series
++        except Exception as e:
++            logging.error(f"Error fetching daily data for ({lat_point}, {lon_point}): {str(e)}")
++            return None
++
++    daily_series_list = []
++
++    with ThreadPoolExecutor(max_workers=2) as executor:
++        futures = {
++            executor.submit(fetch_daily_data, lat_point, lon_point): (lat_point, lon_point)
++            for lat_point in lats for lon_point in lons
++        }
++        for future in as_completed(futures):
++            result = future.result()
++            if result is not None:
++                daily_series_list.append(result)
++
++    if not daily_series_list:
++        return None
++
++    # 日付ごとに平均を取る（Seriesのリスト → DataFrame → 平均）
++    daily_df = pd.concat(daily_series_list, axis=1)
++    daily_mean_series = daily_df.mean(axis=1)
++
++    return daily_mean_series
++
+diff --git a/nasa_api_tutorial_daily.py b/nasa_api_tutorial_daily.py
+new file mode 100644
+index 0000000..808da0e
+--- /dev/null
++++ b/nasa_api_tutorial_daily.py
+@@ -0,0 +1,28 @@
++import requests
++import pandas as pd
++import logging
++import numpy as np
++from concurrent.futures import ThreadPoolExecutor, as_completed
++import time
++import random
++from nasa_api import *  # ここに get_daily_grid_average_temperature を定義済みとする
++
++log_start()
++
++# 表示行数の制限を解除（オプション）
++pd.set_option('display.max_rows', None)
++
++# 例として、東京の2019年の日次平均地表面温度を取得
++latitude = 35.6895
++longitude = 139.6917
++year = 2019
++parameter = 'T2M'  # 地表面温度（2メートル気温）
++
++# 日次のグリッド平均温度を取得
++temperature_series = get_daily_grid_average_temperature(latitude, longitude, year, parameter)
++
++if temperature_series is not None:
++    print(f"\nDaily {parameter} values for a 20km grid around Tokyo in {year}:")
++    print(temperature_series)
++else:
++    print("Failed to retrieve daily data for the specified parameters.")
