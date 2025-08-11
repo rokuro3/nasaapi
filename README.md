@@ -39,6 +39,22 @@
   - CSVファイルを読み込み、CartopyとMatplotlibで散布図を描画
   - インタラクティブに拡大縮小可能な視覚化を実現
 
+### 5. 降水量可視化アプリケーション (`precipitation_app.py`)
+- **役割**: 1990年代と2010年代の降水量データを切り替えて表示する、インタラクティブなStreamlitアプリケーションです。
+- **主な機能**:
+  - サイドバーで年代（1990s, 2010s）と月（1-12, Annual）を選択。
+  - 選択されたデータに基づいて、日本の地図上に降水量を色分けされた散布図で表示。
+- **必要なデータ形式**:
+  アプリケーションは、以下の列を含むCSVファイルを`data`ディレクトリに配置する必要があります。
+  - `Latitude`: 緯度
+  - `Longitude`: 経度
+  - `Month`: 月（1-12の数値、または'Annual'）
+  - `Total Precipitation (mm)`: 総降水量
+- **実行方法**:
+  ```bash
+  streamlit run precipitation_app.py
+  ```
+
 ---
 
 ## セットアップと実行方法
@@ -102,6 +118,7 @@ print(daily_temperatures)
 ```bash
 streamlit run display_in_streamlit.py
 streamlit run display_in_streamlit_daily.py
+streamlit run precipitation_app.py
 ```
 
 ## 注意点
