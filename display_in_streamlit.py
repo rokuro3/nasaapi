@@ -10,6 +10,7 @@ st.sidebar.header("User Input")
 
 # サイドバーでの入力
 year_option = st.sidebar.selectbox("Select the decade:", ['1990s', '2010s'])
+month_option = st.sidebar.selectbox("Select the month:", list(range(1, 13))) # 1月から12月まで
 option = st.sidebar.selectbox("Select the data to plot:", ['temperature', 'radiation', 'height', 'seaDistance', 'TotalPrecipitation'])
 
 # 選択されたデータに応じてCSVをロード
@@ -23,6 +24,10 @@ try:
 except FileNotFoundError:
     st.error("CSV file not found. Please check the file path.")
     st.stop()
+
+# 'month'列を整数型に変換し、フィルタリング
+df['month'] = pd.to_datetime(df['time']).dt.month
+df = df[df['month'] == month_option]
 
 # 必要ならば'height'列をfloatに変換し、エラー時に0に置き換え
 if option == 'height':
@@ -54,7 +59,7 @@ scatter = ax.scatter(
 plt.colorbar(scatter, ax=ax, orientation='horizontal', label=option)
 
 # タイトルとラベル
-plt.title(f'{option.capitalize()} Distribution in Japan')
+plt.title(f'{option.capitalize()} Distribution in Japan for Month {month_option}')
 plt.xlabel('Longitude')
 plt.ylabel('Latitude')
 

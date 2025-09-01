@@ -35,9 +35,10 @@
 - **役割**: Streamlitを使用して、処理済みの気象データをインタラクティブに視覚化するWebアプリケーションを提供します。
 - **主な機能**:
   - サイドバーでデータセット（1990年代または2010年代）と表示パラメータ（温度、放射量など）を選択
-  - `display_in_streamlit_daily.py` では日次データを選択して視覚化
+  - `display_in_streamlit_daily.py` ではlong形式の日次データCSVを利用し、日付番号（yyyymmdd）とデータタイプ（T2M, RAD）をサイドバーから選択して視覚化
   - CSVファイルを読み込み、CartopyとMatplotlibで散布図を描画
   - インタラクティブに拡大縮小可能な視覚化を実現
+
 
 ### 5. 降水量可視化アプリケーション (`precipitation_app.py`)
 - **役割**: 1990年代と2010年代の降水量データを切り替えて表示する、インタラクティブなStreamlitアプリケーションです。
@@ -55,6 +56,12 @@
   streamlit run precipitation_app.py
   ```
 
+### 6. `app_pygwalker.py`
+- **役割**: [pygwalker](https://github.com/Kanaries/pygwalker) を用いて、long形式の気象データCSVをノーコードで可視化・探索できるインタラクティブなダッシュボードを提供します。
+- **主な機能**:
+  - `measuredData/master_1990年代_20241106_TotalRain_daily_long.csv` などのlong形式CSVを読み込み
+  - `lat1`（緯度）・`lon1`（経度）カラムを地理情報として指定し、地図上での可視化も可能
+  - StreamlitやJupyter Notebook上での利用に対応
 ---
 
 ## セットアップと実行方法
@@ -113,6 +120,10 @@ print(daily_temperatures)
 
 `display_in_streamlit.py` を実行することで、Streamlitアプリケーションが起動し、サイドバーから年代や表示するパラメータを選択してインタラクティブなマップ表示を行います。
 
+## データの視覚化（Streamlit）
+
+`display_in_streamlit.py` および `display_in_streamlit_daily.py` を実行することで、Streamlitアプリケーションが起動し、サイドバーから年代や表示するパラメータ・日付を選択してインタラクティブなマップ表示を行います。
+
 ### Streamlitアプリの起動方法
 
 ```bash
@@ -120,6 +131,15 @@ streamlit run display_in_streamlit.py
 streamlit run display_in_streamlit_daily.py
 streamlit run precipitation_app.py
 ```
+
+#### `display_in_streamlit_daily.py` の特徴
+- long形式のCSV（例: `measuredData/master_1990年代_20241106_TotalRain_daily_long.csv`）を読み込み
+- サイドバーで「年代」「データタイプ（T2M, RAD）」「日付番号（yyyymmdd）」を選択
+- 選択した条件で地図上に散布図を描画
+
+#### `app_pygwalker.py` の特徴
+- long形式のCSVをpygwalkerで読み込み、ノーコードで多様な可視化・分析が可能
+- 緯度・経度カラムを指定して地理的な可視化もサポート
 
 ## 注意点
 
